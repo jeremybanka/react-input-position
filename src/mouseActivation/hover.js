@@ -1,31 +1,31 @@
-import utils from "../utils";
+import utils from "../utils"
 
 function mouseDown() {
-  this.mouseDown = true;
+  this.mouseDown = true
 }
 
 function mouseUp() {
-  this.mouseDown = false;
+  this.mouseDown = false
 }
 
 function mouseMove(e) {
-  const position = { x: e.clientX, y: e.clientY };
+  const position = { x: e.clientX, y: e.clientY }
 
   if (!this.getState().active) {
-    return this.activate(position);
+    return this.activate(position)
   }
 
-  this.setPosition(position, this.mouseDown);
+  this.setPosition(position, this.mouseDown)
 }
 
 function mouseEnter(e) {
-  const position = { x: e.clientX, y: e.clientY };
-  this.activate(position);
+  const position = { x: e.clientX, y: e.clientY }
+  this.activate(position)
 }
 
 function mouseLeave() {
-  this.deactivate();
-  this.mouseDown = false;
+  this.deactivate()
+  this.mouseDown = false
 }
 
 export default {
@@ -34,5 +34,5 @@ export default {
   mouseMove,
   mouseEnter,
   mouseLeave,
-  dragStart: utils.preventDefault
-};
+  dragStart: utils.preventDefault,
+}
