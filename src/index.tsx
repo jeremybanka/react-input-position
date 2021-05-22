@@ -1,4 +1,4 @@
-import React, { Component, CSSProperties, RefObject } from "react"
+import React, { Component, CSSProperties, ReactElement, RefObject } from "react"
 import PropTypes from "prop-types"
 import mouseActivation from "./mouseActivation"
 import touchActivation from "./touchActivation"
@@ -45,8 +45,8 @@ interface place2d {
 }
 
 interface InputPositionProps {
-  mouseActivationMethod?: string[]
-  touchActivationMethod?: string[]
+  mouseActivationMethod?: string
+  touchActivationMethod?: string
   onUpdate: Function
   onActivate: Function
   onDeactivate: Function
@@ -476,13 +476,13 @@ class ReactInputPosition extends Component<InputPositionProps> {
   }
 
   addMouseEventListeners() {
-    this.mouseHandlers.forEach((mouse) => {
+    this.mouseHandlers.forEach(mouse => {
       this.containerRef.current.addEventListener(mouse.event, mouse.handler)
     })
   }
 
   addTouchEventListeners() {
-    this.touchHandlers.forEach((touch) => {
+    this.touchHandlers.forEach(touch => {
       this.containerRef.current.addEventListener(
         touch.event,
         touch.handler,
@@ -492,13 +492,13 @@ class ReactInputPosition extends Component<InputPositionProps> {
   }
 
   removeMouseEventListeners() {
-    this.mouseHandlers.forEach((mouse) => {
+    this.mouseHandlers.forEach(mouse => {
       this.containerRef.current.removeEventListener(mouse.event, mouse.handler)
     })
   }
 
   removeTouchEventListeners() {
-    this.touchHandlers.forEach((touch) => {
+    this.touchHandlers.forEach(touch => {
       this.containerRef.current.removeEventListener(
         touch.event,
         touch.handler,
@@ -517,7 +517,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     window.removeEventListener("load", this.onLoadRefresh)
   }
 
-  render() {
+  render(): ReactElement {
     const { style, className, children, cursorStyle, cursorStyleActive } =
       this.props
     const { active } = this.getState()

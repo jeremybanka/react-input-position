@@ -15,9 +15,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsx": "react"
   },
-  "include": ["src"],
-  "exclude": ["src/lab/**/*"]
+  "include": ["src"]
 }
