@@ -36,7 +36,7 @@ function mouseLeave(this: ReactInputPosition): void {
   this.mouseDown = false
 }
 
-export const mouseDownInteractions = {
+export const interactions = {
   mouseDown,
   mouseUp,
   mouseMove,

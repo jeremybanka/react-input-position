@@ -84,6 +84,7 @@ interface InputPositionProps {
   mouseDownAllowOutside?: boolean
   cursorStyleActive?: string
   clickMoveLimit: number
+  longTouchMoveLimit: number
 }
 
 class ReactInputPosition extends Component<InputPositionProps> {
@@ -107,6 +108,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
   longTouchTimedOut = false
   refresh = true
   clickMoveStartRef = 0
+  longTouchStartRef = 0
 
   static propTypes = {
     mouseActivationMethod: PropTypes.oneOf([
@@ -196,7 +198,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     this.checkPassiveEventSupport()
     this.setInputInteractionMethods()
     this.addMouseEventListeners()
-    //this.addTouchEventListeners()
+    this.addTouchEventListeners()
     this.addOtherEventListeners()
   }
 
@@ -275,7 +277,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
 
   setInputInteractionMethods() {
     this.setMouseInteractionMethods()
-    //this.setTouchInteractionMethods()
+    this.setTouchInteractionMethods()
   }
 
   setMouseInteractionMethods() {
@@ -294,15 +296,17 @@ class ReactInputPosition extends Component<InputPositionProps> {
   }
 
   setTouchInteractionMethods() {
-    const touchInteractionMethods: interactionSet =
-      touchActivation[this.props.touchActivationMethod]
-    this.touchHandlers = []
+    if (this.props.touchActivationMethod) {
+      const touchInteractionMethods: interactionSet =
+        touchActivation[this.props.touchActivationMethod]
+      this.touchHandlers = []
 
-    for (let interactionMethod of touchInteractionMethods) {
-      this.touchHandlers.push({
-        event: interactionMethod[0],
-        handler: interactionMethod[1].bind(this),
-      })
+      for (let interactionMethod of touchInteractionMethods) {
+        this.touchHandlers.push({
+          event: interactionMethod[0],
+          handler: interactionMethod[1].bind(this),
+        })
+      }
     }
   }
 
