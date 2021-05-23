@@ -9,11 +9,11 @@ function decorateChild(child, props) {
 }
 
 function shouldDecorateChild(child) {
-  return !!child && isReactComponent(child)
+  return !!child && isReactComponent(child) && !!child.props.usePosition
 }
 
 function decorateChildren(children, props) {
-  return Children.map(children, (child) => {
+  return Children.map(children, child => {
     return shouldDecorateChild(child) ? decorateChild(child, props) : child
   })
 }
