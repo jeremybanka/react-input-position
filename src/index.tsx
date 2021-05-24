@@ -113,6 +113,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
   static propTypes = {
     mouseActivationMethod: PropTypes.oneOf([
       MOUSE_ACTIVATION.CLICK,
+      MOUSE_ACTIVATION.RIGHT_CLICK,
       MOUSE_ACTIVATION.DOUBLE_CLICK,
       MOUSE_ACTIVATION.HOVER,
       MOUSE_ACTIVATION.MOUSE_DOWN,

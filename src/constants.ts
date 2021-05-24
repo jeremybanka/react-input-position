@@ -1,5 +1,6 @@
 export const MOUSE_ACTIVATION = {
   CLICK: `click`,
+  RIGHT_CLICK: `rightClick`,
   DOUBLE_CLICK: `doubleClick`,
   HOVER: `hover`,
   MOUSE_DOWN: `mouseDown`,
