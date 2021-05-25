@@ -1,11 +1,4 @@
-import React, {
-  Component,
-  CSSProperties,
-  ReactElement,
-  Ref,
-  RefObject,
-} from "react"
-import PropTypes from "prop-types"
+import React, { Component, CSSProperties, ReactElement, RefObject } from "react"
 import mouseActivation from "./mouseActivation"
 import touchActivation from "./touchActivation"
 import { MOUSE_ACTIVATION, TOUCH_ACTIVATION } from "./constants"
@@ -32,10 +25,10 @@ const defaultState = {
   itemDimensions: { width: 0, height: 0 },
 }
 
-export type interactionSet = [keyof WindowEventMap, EventListener][]
+export type interactionSet = [keyof HTMLElementEventMap, EventListener][]
 
 interface handler {
-  event: keyof WindowEventMap
+  event: keyof HTMLElementEventMap
   handler: EventListenerOrEventListenerObject
 }
 
@@ -55,10 +48,10 @@ interface place2d {
 interface InputPositionProps {
   mouseActivationMethod?: string
   touchActivationMethod?: string
-  onUpdate: Function
-  onActivate: Function
-  onDeactivate: Function
-  overrideState: {}
+  onUpdate: CallableFunction
+  onActivate: CallableFunction
+  onDeactivate: CallableFunction
+  overrideState: Partial<inputPositionState>
   trackItemPosition: boolean
   centerItemOnLoad: boolean
   minUpdateSpeedInMs: number
@@ -78,7 +71,7 @@ interface InputPositionProps {
   tapDurationInMs: number
   doubleTapDurationInMs: number
   longTouchDurationInMs: number
-  style: {}
+  style: CSSProperties
   className
   cursorStyle
   mouseDownAllowOutside?: boolean
@@ -88,14 +81,47 @@ interface InputPositionProps {
 }
 
 class ReactInputPosition extends Component<InputPositionProps> {
-  supportsPassive?: boolean
-  mouseOutside?: boolean
-  mouseHandlers: handler[] = []
-  touchHandlers: handler[] = []
+  static defaultProps = {
+    tapDurationInMs: 180,
+    doubleTapDurationInMs: 400,
+    longTouchDurationInMs: 500,
+    longTouchMoveLimit: 5,
+    clickMoveLimit: 5,
+    style: {},
+    minUpdateSpeedInMs: 1,
+    itemMovementMultiplier: 1,
+    cursorStyle: `crosshair`,
+    mouseActivationMethod: MOUSE_ACTIVATION.CLICK,
+    touchActivationMethod: TOUCH_ACTIVATION.TAP,
+    mouseDownAllowOutside: false,
+  }
 
   state = defaultState
-  containerRef: RefObject<any> = React.createRef()
-  itemRef: RefObject<any> = React.createRef()
+
+  componentDidMount(): void {
+    this.init()
+    this.refreshPosition()
+  }
+  componentDidUpdate(prevProps: InputPositionProps): void {
+    if (prevProps.mouseActivationMethod !== this.props.mouseActivationMethod) {
+      this.removeMouseEventListeners()
+      this.setMouseInteractionMethods()
+      this.addMouseEventListeners()
+    }
+    if (prevProps.touchActivationMethod !== this.props.touchActivationMethod) {
+      this.removeTouchEventListeners()
+      this.setTouchInteractionMethods()
+      this.addTouchEventListeners()
+    }
+  }
+  componentWillUnmount(): void {
+    this.removeMouseEventListeners()
+    this.removeTouchEventListeners()
+    this.removeOtherEventListeners()
+  }
+
+  containerRef: RefObject<HTMLDivElement> = React.createRef()
+  itemRef: RefObject<HTMLElement> = React.createRef()
   mouseDown = false
   touched = false
   justTouched = false
@@ -110,91 +136,12 @@ class ReactInputPosition extends Component<InputPositionProps> {
   clickMoveStartRef = 0
   longTouchStartRef = 0
 
-  static propTypes = {
-    mouseActivationMethod: PropTypes.oneOf([
-      MOUSE_ACTIVATION.CLICK,
-      MOUSE_ACTIVATION.DOUBLE_CLICK,
-      MOUSE_ACTIVATION.HOVER,
-      MOUSE_ACTIVATION.MOUSE_DOWN,
-    ]).isRequired,
-    touchActivationMethod: PropTypes.oneOf([
-      TOUCH_ACTIVATION.DOUBLE_TAP,
-      TOUCH_ACTIVATION.LONG_TOUCH,
-      TOUCH_ACTIVATION.TAP,
-      TOUCH_ACTIVATION.TOUCH,
-    ]).isRequired,
-    tapDurationInMs: PropTypes.number,
-    doubleTapDurationInMs: PropTypes.number,
-    longTouchDurationInMs: PropTypes.number,
-    longTouchMoveLimit: PropTypes.number,
-    clickMoveLimit: PropTypes.number,
-    itemPositionMinX: PropTypes.number,
-    itemPositionMaxX: PropTypes.number,
-    itemPositionMinY: PropTypes.number,
-    itemPositionMaxY: PropTypes.number,
-    itemPositionLimitBySize: PropTypes.bool,
-    itemPositionLimitInternal: PropTypes.bool,
-    linkItemToActive: PropTypes.bool,
-    className: PropTypes.string,
-    style: PropTypes.object,
-    minUpdateSpeedInMs: PropTypes.number,
-    trackPassivePosition: PropTypes.bool,
-    trackItemPosition: PropTypes.bool,
-    trackPreviousPosition: PropTypes.bool,
-    centerItemOnActivate: PropTypes.bool,
-    centerItemOnActivatePos: PropTypes.bool,
-    centerItemOnLoad: PropTypes.bool,
-    alignItemOnActivePos: PropTypes.bool,
-    itemMovementMultiplier: PropTypes.number,
-    cursorStyle: PropTypes.string,
-    cursorStyleActive: PropTypes.string,
-    onUpdate: PropTypes.func,
-    overrideState: PropTypes.object,
-    mouseDownAllowOutside: PropTypes.bool,
-    onActivate: PropTypes.func,
-    onDeactivate: PropTypes.func,
-  }
+  supportsPassive = false
+  mouseOutside?: boolean
+  mouseHandlers: handler[] = []
+  touchHandlers: handler[] = []
 
-  static defaultProps = {
-    tapDurationInMs: 180,
-    doubleTapDurationInMs: 400,
-    longTouchDurationInMs: 500,
-    longTouchMoveLimit: 5,
-    clickMoveLimit: 5,
-    style: {},
-    minUpdateSpeedInMs: 1,
-    itemMovementMultiplier: 1,
-    cursorStyle: "crosshair",
-    mouseActivationMethod: MOUSE_ACTIVATION.CLICK,
-    touchActivationMethod: TOUCH_ACTIVATION.TAP,
-    mouseDownAllowOutside: false,
-  }
-
-  componentDidMount() {
-    this.init()
-    this.refreshPosition()
-  }
-
-  componentWillUnmount() {
-    this.removeMouseEventListeners()
-    this.removeTouchEventListeners()
-    this.removeOtherEventListeners()
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.mouseActivationMethod !== this.props.mouseActivationMethod) {
-      this.removeMouseEventListeners()
-      this.setMouseInteractionMethods()
-      this.addMouseEventListeners()
-    }
-    if (prevProps.touchActivationMethod !== this.props.touchActivationMethod) {
-      this.removeTouchEventListeners()
-      this.setTouchInteractionMethods()
-      this.addTouchEventListeners()
-    }
-  }
-
-  init() {
+  init(): void {
     this.checkPassiveEventSupport()
     this.setInputInteractionMethods()
     this.addMouseEventListeners()
@@ -202,22 +149,24 @@ class ReactInputPosition extends Component<InputPositionProps> {
     this.addOtherEventListeners()
   }
 
-  checkPassiveEventSupport() {
+  checkPassiveEventSupport(): void {
     this.supportsPassive = false
     try {
-      const options = Object.defineProperty({}, "passive", {
+      const options = Object.defineProperty({}, `passive`, {
         get: () => (this.supportsPassive = true),
       })
-      window.addEventListener("testPassive", () => {}, options)
-      window.removeEventListener("testPassive", () => {}, options)
-    } catch (e) {}
+      window.addEventListener(`testPassive`, () => undefined, options)
+      window.removeEventListener(`testPassive`, () => undefined, options)
+    } catch (e) {
+      return undefined
+    }
   }
 
-  updateState(changes: inputPositionState, cb?: Function) {
+  updateState(changes: inputPositionState, cb?: VoidFunction): void {
     const { onUpdate } = this.props
 
     let activationCallback
-    if (changes.hasOwnProperty("active")) {
+    if (Object.prototype.hasOwnProperty.call(changes, `active`)) {
       if (changes.active) {
         activationCallback = this.props.onActivate
       } else {
@@ -245,17 +194,16 @@ class ReactInputPosition extends Component<InputPositionProps> {
   getState(): inputPositionState {
     if (this.props.overrideState) {
       return this.props.overrideState
-    } else {
-      return this.state
     }
+    return this.state
   }
 
-  getStateClone() {
+  getStateClone(): inputPositionState {
     const state = this.getState()
     const clonedState = {}
 
-    for (let key in state) {
-      if (typeof state[key] === "object") {
+    for (const key in state) {
+      if (typeof state[key] === `object`) {
         clonedState[key] = { ...state[key] }
       } else {
         clonedState[key] = state[key]
@@ -265,28 +213,28 @@ class ReactInputPosition extends Component<InputPositionProps> {
     return clonedState
   }
 
-  onLoadRefresh = () => {
+  onLoadRefresh = (): void => {
     this.refreshPosition()
   }
 
-  refreshPosition() {
+  refreshPosition(): void {
     const { trackItemPosition, centerItemOnLoad } = this.props
 
     this.setPosition({ x: 0, y: 0 }, trackItemPosition, false, centerItemOnLoad)
   }
 
-  setInputInteractionMethods() {
+  setInputInteractionMethods(): void {
     this.setMouseInteractionMethods()
     this.setTouchInteractionMethods()
   }
 
-  setMouseInteractionMethods() {
+  setMouseInteractionMethods(): void {
     if (this.props.mouseActivationMethod) {
       const mouseInteractionMethods: interactionSet =
         mouseActivation[this.props.mouseActivationMethod]
       this.mouseHandlers = []
 
-      for (let interactionMethod of mouseInteractionMethods) {
+      for (const interactionMethod of mouseInteractionMethods) {
         this.mouseHandlers.push({
           event: interactionMethod[0],
           handler: interactionMethod[1].bind(this),
@@ -295,13 +243,13 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  setTouchInteractionMethods() {
+  setTouchInteractionMethods(): void {
     if (this.props.touchActivationMethod) {
       const touchInteractionMethods: interactionSet =
         touchActivation[this.props.touchActivationMethod]
       this.touchHandlers = []
 
-      for (let interactionMethod of touchInteractionMethods) {
+      for (const interactionMethod of touchInteractionMethods) {
         this.touchHandlers.push({
           event: interactionMethod[0],
           handler: interactionMethod[1].bind(this),
@@ -310,16 +258,22 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  handleResize = () => {
+  handleResize = (): void => {
     this.refreshPosition()
   }
 
-  setPosition(position, updateItemPosition, activate?, centerItem?) {
+  setPosition(
+    position: point2d,
+    updateItemPosition: boolean,
+    activate?: boolean,
+    centerItem?: boolean
+  ): void {
     if (this.props.minUpdateSpeedInMs && !this.refresh) return
     this.refresh = false
 
-    const { left, top, width, height } =
-      this.containerRef.current.getBoundingClientRect()
+    const { left, top, width, height } = this.containerRef.current
+      ? this.containerRef.current.getBoundingClientRect()
+      : { left: 0, top: 0, width: 0, height: 0 }
 
     const {
       trackItemPosition,
@@ -342,12 +296,12 @@ class ReactInputPosition extends Component<InputPositionProps> {
 
     // Set container div info and active position
     const stateUpdate = {
-      active: activate ? true : false,
+      active: !!activate,
       elementOffset: { left, top },
       elementDimensions: { width, height },
       itemPosition: { x: 0, y: 0 },
       itemDimensions: this.itemRef.current
-        ? { ...this.itemRef.current.getBoundingClientRect }
+        ? { ...this.itemRef.current.getBoundingClientRect() }
         : undefined,
       activePosition: {
         x: Math.min(Math.max(0, position.x - left), width),
@@ -436,10 +390,12 @@ class ReactInputPosition extends Component<InputPositionProps> {
     this.updateState(stateUpdate, this.startRefreshTimer)
   }
 
-  setPassivePosition(position) {
+  setPassivePosition(position: point2d): void {
     if (!this.props.trackPassivePosition) return
 
-    const { left, top } = this.containerRef.current.getBoundingClientRect()
+    const { left, top } = this.containerRef.current
+      ? this.containerRef.current.getBoundingClientRect()
+      : { left: 0, top: 0 }
 
     this.updateState({
       passivePosition: {
@@ -449,7 +405,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     })
   }
 
-  toggleActive(position = { x: 0, y: 0 }) {
+  toggleActive(position = { x: 0, y: 0 }): void {
     if (!this.getState().active) {
       this.activate(position)
     } else {
@@ -457,15 +413,15 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  activate(position = { x: 0, y: 0 }) {
+  activate(position = { x: 0, y: 0 }): void {
     this.setPosition(position, false, true)
   }
 
-  deactivate() {
+  deactivate(): void {
     this.updateState({ active: false })
   }
 
-  startRefreshTimer() {
+  startRefreshTimer(): void {
     if (!this.props.minUpdateSpeedInMs) return
 
     setTimeout(() => {
@@ -473,19 +429,19 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }, this.props.minUpdateSpeedInMs)
   }
 
-  startTapTimer() {
+  startTapTimer(): void {
     this.tapTimer = setTimeout(() => {
       this.tapTimedOut = true
     }, this.props.tapDurationInMs)
   }
 
-  startDoubleTapTimer() {
+  startDoubleTapTimer(): void {
     this.doubleTapTimer = setTimeout(() => {
       this.doubleTapTimedOut = true
     }, this.props.doubleTapDurationInMs)
   }
 
-  startLongTouchTimer(e) {
+  startLongTouchTimer(e: point2d): void {
     this.longTouchTimer = setTimeout(() => {
       if (this.touched) {
         this.toggleActive(e)
@@ -493,15 +449,15 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }, this.props.longTouchDurationInMs)
   }
 
-  addMouseEventListeners() {
+  addMouseEventListeners(): void {
     this.mouseHandlers.forEach(mouse => {
-      this.containerRef.current.addEventListener(mouse.event, mouse.handler)
+      this.containerRef.current?.addEventListener(mouse.event, mouse.handler)
     })
   }
 
-  addTouchEventListeners() {
+  addTouchEventListeners(): void {
     this.touchHandlers.forEach(touch => {
-      this.containerRef.current.addEventListener(
+      this.containerRef.current?.addEventListener(
         touch.event,
         touch.handler,
         this.supportsPassive ? { passive: false } : false
@@ -509,30 +465,30 @@ class ReactInputPosition extends Component<InputPositionProps> {
     })
   }
 
-  removeMouseEventListeners() {
+  removeMouseEventListeners(): void {
     this.mouseHandlers.forEach(mouse => {
-      this.containerRef.current.removeEventListener(mouse.event, mouse.handler)
+      this.containerRef.current?.removeEventListener(mouse.event, mouse.handler)
     })
   }
 
-  removeTouchEventListeners() {
+  removeTouchEventListeners(): void {
     this.touchHandlers.forEach(touch => {
-      this.containerRef.current.removeEventListener(
+      this.containerRef.current?.removeEventListener(
         touch.event,
         touch.handler,
-        this.supportsPassive ? { passive: false } : false
+        this.supportsPassive
       )
     })
   }
 
-  addOtherEventListeners() {
-    window.addEventListener("resize", this.handleResize)
-    window.addEventListener("load", this.onLoadRefresh)
+  addOtherEventListeners(): void {
+    window.addEventListener(`resize`, this.handleResize)
+    window.addEventListener(`load`, this.onLoadRefresh)
   }
 
-  removeOtherEventListeners() {
-    window.removeEventListener("resize", this.handleResize)
-    window.removeEventListener("load", this.onLoadRefresh)
+  removeOtherEventListeners(): void {
+    window.removeEventListener(`resize`, this.handleResize)
+    window.removeEventListener(`load`, this.onLoadRefresh)
   }
 
   render(): ReactElement {
@@ -542,10 +498,10 @@ class ReactInputPosition extends Component<InputPositionProps> {
 
     const combinedStyle: CSSProperties = {
       ...style,
-      WebkitUserSelect: "none",
-      MozUserSelect: "none",
-      msUserSelect: "none",
-      userSelect: "none",
+      WebkitUserSelect: `none`,
+      MozUserSelect: `none`,
+      msUserSelect: `none`,
+      userSelect: `none`,
       cursor: active ? cursorStyleActive || cursorStyle : cursorStyle,
     }
 
