@@ -29,6 +29,7 @@ module.exports = {
   },
   rules: {
     "arrow-parens": [`error`, `as-needed`],
+    "lines-between-class-members": `off`,
     "comma-dangle": [
       `error`,
       {
@@ -98,6 +99,7 @@ module.exports = {
     "no-nested-ternary": `off`,
     "no-param-reassign": `off`,
     "no-plusplus": `off`,
+    "no-restricted-syntax": [`error`, `LabeledStatement`, `WithStatement`],
     "no-return-assign": `off`,
     "no-shadow": `off`,
     "no-undef-init": `off`,
@@ -117,7 +119,11 @@ module.exports = {
         consistent: true,
       },
     ],
-    "operator-linebreak": [`error`, `before`],
+    "operator-linebreak": [
+      `error`,
+      `after`,
+      { overrides: { "?": `before`, ":": `before` } },
+    ],
     "prefer-destructuring": [
       `error`,
       {
