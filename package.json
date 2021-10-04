@@ -1,5 +1,5 @@
 {
-  "name": "react-cursor-coords",
+  "name": "react-mouse-position",
   "version": "1.3.2",
   "description": "A React component that decorates its children with mouse/touch position tracking, a status toggle fired by click/gesture events, and more.",
   "keywords": [
