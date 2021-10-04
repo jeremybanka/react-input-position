@@ -8,18 +8,14 @@ function mouseDown(this: ReactInputPosition, e: MouseEvent): void {
 
 function mouseUp(this: ReactInputPosition): void {
   this.deactivate()
-
-  if (this.mouseOutside) {
-    addRemoveOutsideHandlers.call(this, this)
-  }
+  if (this.mouseOutside) removeOutsideHandlers(this)
 }
 
 function mouseMove(this: ReactInputPosition, e: MouseEvent): void {
   const position = { x: e.clientX, y: e.clientY }
 
-  if (!this.getState().active) {
-    return this.setPassivePosition(position)
-  }
+  const isInactive = !this.getState().active
+  if (isInactive) return this.setPassivePosition(position)
 
   this.setPosition(position, true)
 }
@@ -27,43 +23,31 @@ function mouseMove(this: ReactInputPosition, e: MouseEvent): void {
 function mouseEnter(this: ReactInputPosition): void {
   if (this.mouseOutside) {
     this.mouseOutside = false
-    addRemoveOutsideHandlers.call(this, this)
+    removeOutsideHandlers(this)
   }
 }
 
 function mouseLeave(this: ReactInputPosition): void {
-  if (!this.getState().active) {
-    return
-  }
-
-  if (!this.props.mouseDownAllowOutside) {
-    return this.deactivate()
-  }
+  if (!this.getState().active) return
+  if (!this.props.mouseDownAllowOutside) return this.deactivate()
 
   this.mouseOutside = true
-  addRemoveOutsideHandlers.call(this, true)
+  addOutsideHandlers(this)
 }
 
-function addRemoveOutsideHandlers(this: ReactInputPosition, add): void {
-  this.mouseHandlers
+const addOutsideHandlers = (target: ReactInputPosition): void =>
+  toggleOutsideHandlers(target, true)
+const removeOutsideHandlers = (target: ReactInputPosition): void =>
+  toggleOutsideHandlers(target, false)
+function toggleOutsideHandlers(target: ReactInputPosition, on: boolean): void {
+  target.mouseHandlers
     .filter(h => h.event === `mouseup` || h.event === `mousemove`)
     .forEach(({ event, handler }) => {
-      if (add) {
-        window.addEventListener(event, handler)
-      } else {
-        window.removeEventListener(event, handler)
-      }
+      on && window.addEventListener(event, handler)
+      !on && window.removeEventListener(event, handler)
     })
 }
 
-export const mouseDownInteractions = {
-  mouseDown,
-  mouseUp,
-  mouseMove,
-  mouseLeave,
-  mouseEnter,
-  dragStart: utils.preventDefault,
-}
 export default [
   [`mousedown`, mouseDown],
   [`mouseup`, mouseUp],

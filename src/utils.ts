@@ -1,10 +1,16 @@
-import { Children, cloneElement } from "react"
+import { Children, cloneElement, ReactElement, ReactNode } from "react"
+import { childState, NULL_SCALE, ORIGIN_POINT } from "."
 
-function isReactComponent(element) {
-  return typeof element.type === "function"
+function isReactComponent(
+  element: React.DetailedReactHTMLElement<
+    React.HTMLAttributes<HTMLElement>,
+    HTMLElement
+  >
+): boolean {
+  return typeof element.type === `function`
 }
 
-function decorateChild(child, props) {
+function decorateChild(child: ReactElement, props: childState): ReactNode {
   return cloneElement(child, props)
 }
 
@@ -12,22 +18,35 @@ function shouldDecorateChild(child) {
   return !!child && isReactComponent(child) && !!child.props.usePosition
 }
 
-function decorateChildren(children, props) {
-  return Children.map(children, child => {
-    return shouldDecorateChild(child) ? decorateChild(child, props) : child
-  })
+function decorateChildren(
+  children: ReactElement[],
+  props: childState
+): ReactNode {
+  return Children.map(children, child =>
+    shouldDecorateChild(child) ? decorateChild(child, props) : child
+  )
 }
 
-function preventDefault(e) {
-  e.preventDefault()
-}
+const preventDefault = (e: Event): void => e.preventDefault()
 
-function convertRange(oldMin, oldMax, newMin, newMax, oldValue) {
+function convertRange(
+  oldMin: number,
+  oldMax: number,
+  newMin: number,
+  newMax: number,
+  oldValue: number
+): number {
   const percent = (oldValue - oldMin) / (oldMax - oldMin)
   return percent * (newMax - newMin) + newMin
 }
 
-function limitPosition(minX, maxX, minY, maxY, itemPosition = { x: 0, y: 0 }) {
+function limitPosition(
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+  itemPosition = ORIGIN_POINT
+): point2d {
   const position = { ...itemPosition }
 
   if (minX !== undefined && position.x < minX) {
@@ -46,15 +65,20 @@ function limitPosition(minX, maxX, minY, maxY, itemPosition = { x: 0, y: 0 }) {
 }
 
 function createAdjustedLimits(
-  minX,
-  maxX,
-  minY,
-  maxY,
-  elemDimensions = { width: 0, height: 0 },
-  itemDimensions = { width: 0, height: 0 },
-  limitBySize,
-  internal
-) {
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+  elemDimensions = NULL_SCALE,
+  itemDimensions = NULL_SCALE,
+  limitBySize: boolean,
+  internal: boolean
+): {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+} {
   const limits = { minX, maxX, minY, maxY }
 
   if (limits.maxX < 0) {
@@ -101,10 +125,10 @@ function createAdjustedLimits(
 }
 
 function calculateItemPosition(
-  itemPosition = { x: 0, y: 0 },
-  prevActivePosition = { x: 0, y: 0 },
-  activePosition = { x: 0, y: 0 },
-  multiplier
+  itemPosition = ORIGIN_POINT,
+  prevActivePosition = ORIGIN_POINT,
+  activePosition = ORIGIN_POINT,
+  multiplier: number
 ): { x: number; y: number } {
   const newItemPosition = { ...itemPosition }
 
@@ -118,10 +142,10 @@ function calculateItemPosition(
 }
 
 function alignItemOnPosition(
-  elemDimensions = { width: 0, height: 0 },
-  itemDimensions = { width: 0, height: 0 },
-  position
-) {
+  elemDimensions = NULL_SCALE,
+  itemDimensions = NULL_SCALE,
+  position: point2d
+): point2d {
   const oldMaxX = elemDimensions.width
   const newMaxX = -(itemDimensions.width || 0) + elemDimensions.width
   const oldMaxY = elemDimensions.height
@@ -134,10 +158,10 @@ function alignItemOnPosition(
 }
 
 function centerItemOnPosition(
-  elemDimensions = { width: 0, height: 0 },
-  itemDimensions = { width: 0, height: 0 },
-  position
-) {
+  elemDimensions = NULL_SCALE,
+  itemDimensions = NULL_SCALE,
+  position: point2d
+): point2d {
   const itemPosition = alignItemOnPosition(
     elemDimensions,
     itemDimensions,

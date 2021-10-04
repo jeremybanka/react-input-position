@@ -4,6 +4,10 @@ import touchActivation from "./touchActivation"
 import { MOUSE_ACTIVATION, TOUCH_ACTIVATION } from "./constants"
 import utils from "./utils"
 
+export const ORIGIN_POINT: point2d = { x: 0, y: 0 }
+export const NULL_SCALE: scale2d = { height: 0, width: 0 }
+export const ORIGIN_PLACE: place2d = { left: 0, top: 0 }
+
 interface inputPositionState {
   active?: boolean
   activePosition?: point2d
@@ -14,38 +18,25 @@ interface inputPositionState {
   itemPosition?: point2d
   itemDimensions?: scale2d
 }
-const defaultState = {
+
+export interface childState extends inputPositionState {
+  itemRef: React.RefObject<HTMLElement>
+  onLoadRefresh: VoidFunction
+}
+
+const defaultState: inputPositionState = {
   active: false,
-  activePosition: { x: 0, y: 0 },
-  prevActivePosition: { x: 0, y: 0 },
-  passivePosition: { x: 0, y: 0 },
-  elementDimensions: { width: 0, height: 0 },
-  elementOffset: { left: 0, top: 0 },
-  itemPosition: { x: 0, y: 0 },
-  itemDimensions: { width: 0, height: 0 },
-}
-
-export type interactionSet = [keyof HTMLElementEventMap, EventListener][]
-
-interface handler {
-  event: keyof HTMLElementEventMap
-  handler: EventListenerOrEventListenerObject
-}
-
-interface point2d {
-  x: number
-  y: number
-}
-interface scale2d {
-  width: number
-  height: number
-}
-interface place2d {
-  top: number
-  left: number
+  activePosition: ORIGIN_POINT,
+  prevActivePosition: ORIGIN_POINT,
+  passivePosition: ORIGIN_POINT,
+  elementDimensions: NULL_SCALE,
+  elementOffset: ORIGIN_PLACE,
+  itemPosition: ORIGIN_POINT,
+  itemDimensions: NULL_SCALE,
 }
 
 interface InputPositionProps {
+  children: ReactElement[]
   mouseActivationMethod?: string
   touchActivationMethod?: string
   onUpdate: CallableFunction
@@ -62,18 +53,18 @@ interface InputPositionProps {
   linkItemToActive: boolean
   itemMovementMultiplier: number
   alignItemOnActivePos: boolean
-  itemPositionMinX?: number
-  itemPositionMaxX?: number
-  itemPositionMinY?: number
-  itemPositionMaxY?: number
-  itemPositionLimitBySize?: number
-  itemPositionLimitInternal?: number
+  itemPositionMinX: number
+  itemPositionMaxX: number
+  itemPositionMinY: number
+  itemPositionMaxY: number
+  itemPositionLimitBySize: boolean
+  itemPositionLimitInternal: boolean
   tapDurationInMs: number
   doubleTapDurationInMs: number
   longTouchDurationInMs: number
   style: CSSProperties
-  className
-  cursorStyle
+  className: string
+  cursorStyle: string
   mouseDownAllowOutside?: boolean
   cursorStyleActive?: string
   clickMoveLimit: number
@@ -135,9 +126,8 @@ class ReactInputPosition extends Component<InputPositionProps> {
   refresh = true
   clickMoveStartRef = 0
   longTouchStartRef = 0
-
   supportsPassive = false
-  mouseOutside?: boolean
+  mouseOutside = true
   mouseHandlers: handler[] = []
   touchHandlers: handler[] = []
 
@@ -148,7 +138,6 @@ class ReactInputPosition extends Component<InputPositionProps> {
     this.addTouchEventListeners()
     this.addOtherEventListeners()
   }
-
   checkPassiveEventSupport(): void {
     this.supportsPassive = false
     try {
@@ -162,7 +151,10 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  updateState(changes: inputPositionState, cb?: VoidFunction): void {
+  updateState(
+    changes: Partial<inputPositionState>,
+    callback?: VoidFunction
+  ): void {
     const { onUpdate } = this.props
 
     let activationCallback
@@ -177,14 +169,14 @@ class ReactInputPosition extends Component<InputPositionProps> {
     if (this.props.overrideState) {
       onUpdate && onUpdate(changes)
       activationCallback && activationCallback()
-      cb && cb.call(this)
+      callback && callback.call(this)
       return
     }
 
     this.setState(
       () => changes,
       () => {
-        cb && cb.call(this)
+        callback && callback.call(this)
         activationCallback && activationCallback()
         onUpdate && onUpdate(this.getStateClone())
       }
@@ -213,14 +205,14 @@ class ReactInputPosition extends Component<InputPositionProps> {
     return clonedState
   }
 
-  onLoadRefresh = (): void => {
+  onLoadRefresh(): void {
     this.refreshPosition()
   }
 
   refreshPosition(): void {
     const { trackItemPosition, centerItemOnLoad } = this.props
 
-    this.setPosition({ x: 0, y: 0 }, trackItemPosition, false, centerItemOnLoad)
+    this.setPosition(ORIGIN_POINT, trackItemPosition, false, centerItemOnLoad)
   }
 
   setInputInteractionMethods(): void {
@@ -258,7 +250,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  handleResize = (): void => {
+  handleResize(): void {
     this.refreshPosition()
   }
 
@@ -293,16 +285,15 @@ class ReactInputPosition extends Component<InputPositionProps> {
     } = this.props
 
     const { activePosition, itemPosition } = this.getState()
-
     // Set container div info and active position
     const stateUpdate = {
       active: !!activate,
       elementOffset: { left, top },
       elementDimensions: { width, height },
-      itemPosition: { x: 0, y: 0 },
+      itemPosition: ORIGIN_POINT,
       itemDimensions: this.itemRef.current
         ? { ...this.itemRef.current.getBoundingClientRect() }
-        : undefined,
+        : NULL_SCALE,
       activePosition: {
         x: Math.min(Math.max(0, position.x - left), width),
         y: Math.min(Math.max(0, position.y - top), height),
@@ -310,17 +301,15 @@ class ReactInputPosition extends Component<InputPositionProps> {
       prevActivePosition:
         trackPreviousPosition || trackItemPosition
           ? activePosition
-            ? {
-                ...activePosition,
-              }
-            : { x: 0, y: 0 }
-          : undefined,
+            ? { ...activePosition }
+            : ORIGIN_POINT
+          : ORIGIN_POINT,
       passivePosition: trackPassivePosition
         ? {
             x: position.x - left,
             y: position.y - top,
           }
-        : undefined,
+        : ORIGIN_POINT,
     }
 
     // Create adjusted limits
@@ -395,7 +384,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
 
     const { left, top } = this.containerRef.current
       ? this.containerRef.current.getBoundingClientRect()
-      : { left: 0, top: 0 }
+      : ORIGIN_PLACE
 
     this.updateState({
       passivePosition: {
@@ -405,7 +394,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     })
   }
 
-  toggleActive(position = { x: 0, y: 0 }): void {
+  toggleActive(position = ORIGIN_POINT): void {
     if (!this.getState().active) {
       this.activate(position)
     } else {
@@ -413,7 +402,7 @@ class ReactInputPosition extends Component<InputPositionProps> {
     }
   }
 
-  activate(position = { x: 0, y: 0 }): void {
+  activate(position = ORIGIN_POINT): void {
     this.setPosition(position, false, true)
   }
 
